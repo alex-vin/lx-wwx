@@ -1,6 +1,7 @@
 import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
+import { DEFAULT_USER_APIS } from '@/core/defaultUserApi'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
 // import { readFile, writeFile, temporaryDirectoryPath, unlink } from '@/utils/fs'
 // import { isNotificationsEnabled, openNotificationPermissionActivity, shareText } from '@/utils/nativeModules/utils'
@@ -514,12 +515,48 @@ export const getUserApiList = async(): Promise<LX.UserApi.UserApiInfo[]> => {
       updated = true
     }
   }
+
+  // 确保预置自定义源（长青SVIP音源、幻音音源）存在并可用
+  const batchSaves: Array<[string, any]> = []
+  for (const defaultApi of DEFAULT_USER_APIS) {
+    const existingIndex = userApis.findIndex(api => api.id === defaultApi.id || api.name === defaultApi.name)
+    if (existingIndex < 0) {
+      userApis.push({
+        id: defaultApi.id,
+        name: defaultApi.name,
+        description: defaultApi.description,
+        version: defaultApi.version,
+        author: defaultApi.author,
+        homepage: defaultApi.homepage,
+        allowShowUpdateAlert: defaultApi.allowShowUpdateAlert,
+      })
+      batchSaves.push([`${userApiPrefix}${defaultApi.id}`, defaultApi.script])
+      updated = true
+    } else {
+      if (userApis[existingIndex].id !== defaultApi.id) {
+        userApis[existingIndex].id = defaultApi.id
+        updated = true
+      }
+    }
+  }
+
+  if (batchSaves.length) {
+    void saveDataMultiple(batchSaves)
+  }
+
   if (updated) void saveData(userApiPrefix, userApis)
 
   return [...userApis]
 }
 export const getUserApiScript = async(id: string): Promise<string> => {
-  const script = await getData<string>(`${userApiPrefix}${id}`) ?? ''
+  let script = await getData<string>(`${userApiPrefix}${id}`) ?? ''
+  if (!script) {
+    const defaultApi = DEFAULT_USER_APIS.find(api => api.id === id)
+    if (defaultApi) {
+      script = defaultApi.script
+      void saveData(`${userApiPrefix}${id}`, script)
+    }
+  }
   return script
 }
 
@@ -558,6 +595,18 @@ export const addUserApi = async(script: string): Promise<LX.UserApi.UserApiInfo>
   let scriptInfo = matchInfo(result[0])
 
   scriptInfo.name ||= `user_api_${new Date().toLocaleString()}`
+
+  // 检查是否已有同名或同一预设源，如有则覆盖更新对应脚本
+  const existingApi = userApis.find(api => api.name === scriptInfo.name || (scriptInfo.homepage && api.homepage === scriptInfo.homepage))
+  if (existingApi) {
+    Object.assign(existingApi, scriptInfo)
+    await saveDataMultiple([
+      [userApiPrefix, userApis],
+      [`${userApiPrefix}${existingApi.id}`, script],
+    ])
+    return existingApi
+  }
+
   const apiInfo: LX.UserApi.UserApiInfo = {
     id: `user_api_${Math.random().toString().substring(2, 5)}_${Date.now()}`,
     ...scriptInfo,

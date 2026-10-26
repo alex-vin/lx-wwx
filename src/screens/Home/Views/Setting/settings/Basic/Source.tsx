@@ -37,16 +37,19 @@ const Item = ({ id, name, desc, statusLabel, change }: {
 }) => {
   const isActive = useActive(id)
   const theme = useTheme()
-  // const [toggleCheckBox, setToggleCheckBox] = useState(false)
+  const statusColor = statusLabel?.includes('失败')
+    ? '#f5222d'
+    : (statusLabel?.includes('成功') ? (theme['c-primary-font-active'] ?? theme['c-primary-font']) : theme['c-500'])
+
   return (
-    <CheckBox marginBottom={5} check={isActive} onChange={() => { change(id) }} need>
+    <CheckBox marginBottom={5} check={isActive} onChange={() => { change(id) }}>
       <Text style={styles.sourceLabel}>
         {name}
         {
           desc ? <Text style={styles.sourceDesc} color={theme['c-500']} size={13}>  {desc}</Text> : null
         }
         {
-          statusLabel ? <Text style={styles.sourceStatus} size={13}>  {statusLabel}</Text> : null
+          statusLabel ? <Text style={styles.sourceStatus} color={statusColor} size={13}>  {statusLabel}</Text> : null
         }
       </Text>
     </CheckBox>

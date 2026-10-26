@@ -1,4 +1,4 @@
-import { initSetting, showPactModal } from '@/core/common'
+import { initSetting, showPactModal, updateSetting } from '@/core/common'
 import registerPlaybackService from '@/plugins/player/service'
 import initTheme from './theme'
 import initI18n from './i18n'
@@ -9,6 +9,7 @@ import initSync from './sync'
 import initCommonState from './common'
 import { initDeeplink } from './deeplink'
 import { setApiSource } from '@/core/apiSource'
+import apiSourceInfo from '@/utils/musicSdk/api-source-info'
 import commonActions from '@/store/common/action'
 import settingState from '@/store/setting/state'
 import { checkUpdate } from '@/core/version'
@@ -48,7 +49,12 @@ export default async() => {
   await initUserApi(setting)
   bootLog('User Api inited.')
 
-  setApiSource(setting['common.apiSource'])
+  let apiSource = setting['common.apiSource']
+  if (!apiSource || (!apiSource.startsWith('user_api') && !apiSourceInfo.some(a => a.id === apiSource))) {
+    apiSource = 'user_api_changqing'
+    updateSetting({ 'common.apiSource': apiSource })
+  }
+  setApiSource(apiSource)
   bootLog('Api inited.')
 
   registerPlaybackService()

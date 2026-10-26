@@ -6,7 +6,9 @@ import { useI18n } from '@/lang'
 import ScriptImportExport, { type ScriptImportExportType } from './ScriptImportExport'
 import ScriptImportOnline, { type ScriptImportOnlineType } from './ScriptImportOnline'
 import { state } from '@/store/userApi'
-import { tipDialog } from '@/utils/tools'
+import { tipDialog, toast } from '@/utils/tools'
+import { getUserApiList } from '@/utils/data'
+import { setUserApiList } from '@/core/userApi'
 
 import { useTheme } from '@/store/theme/hook'
 
@@ -25,12 +27,22 @@ export default ({ btnStyle }: BtnProps) => {
     return [
       { action: 'local', label: t('user_api_btn_import_local') },
       { action: 'online', label: t('user_api_btn_import_online') },
+      { action: 'presets', label: '加载预设音源' },
     ] as const
   }, [t])
 
   type DorpDownMenuProps = _DorpDownMenuProps<typeof importTypes>
 
   const handleAction: DorpDownMenuProps['onPress'] = ({ action }) => {
+    if (action == 'presets') {
+      void (async() => {
+        const list = await getUserApiList()
+        setUserApiList(list)
+        toast('已加载预设音源（长青源、幻音源）')
+      })()
+      return
+    }
+
     if (state.list.length > 20) {
       void tipDialog({
         message: t('user_api_max_tip'),
